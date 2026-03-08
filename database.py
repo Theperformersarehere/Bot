@@ -1,133 +1,102 @@
-import psycopg2
-from psycopg2.extras import DictCursor
-from psycopg2 import sql
-from config import DATABASE_URL
+import logging
+from supabase import create_client, Client
+from config import SUPABASE_URL, SUPABASE_KEY
 
+logger = logging.getLogger(__name__)
 
-def get_conn():
-    if not DATABASE_URL:
-        raise ValueError("DATABASE_URL is not set in the environment.")
-    return psycopg2.connect(DATABASE_URL)
+# Initialize Supabase client
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in the environment.")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def init_db():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS settings (
-                    key   TEXT PRIMARY KEY,
-                    value TEXT
-                )
-            """)
-            cur.execute(
-                "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING",
-                ("menu_text", "👋 *Welcome!*\n\nJoin our channels below, then tap *✅ I've Joined — Verify*.")
-            )
-            cur.execute(
-                "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING",
-                ("menu_photo_file_id", "")
-            )
+    """
+    Since we're using Supabase, tables must be created manually via the Supabase SQL Editor.
+    This function just ensures the default settings exist.
+    """
+    try:
+        # Check if menu_text exists
+        res = supabase.table("settings").select("*").eq("key", "menu_text").execute()
+        if not res.data:
+            supabase.table("settings").insert({
+                "key": "menu_text",
+                "value": "👋 *Welcome!*\n\nJoin our channels below, then tap *✅ I've Joined — Verify*."
+            }).execute()
 
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS buttons (
-                    id       SERIAL PRIMARY KEY,
-                    label    TEXT NOT NULL,
-                    url      TEXT NOT NULL,
-                    position INTEGER DEFAULT 0
-                )
-            """)
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS channels (
-                    id               SERIAL PRIMARY KEY,
-                    channel_id       TEXT NOT NULL UNIQUE,
-                    channel_username TEXT NOT NULL,
-                    invite_link      TEXT NOT NULL
-                )
-            """)
-
-        conn.commit()
+        # Check if menu_photo_file_id exists
+        res = supabase.table("settings").select("*").eq("key", "menu_photo_file_id").execute()
+        if not res.data:
+            supabase.table("settings").insert({
+                "key": "menu_photo_file_id",
+                "value": ""
+            }).execute()
+            
+        logger.info("Supabase connected and default settings verified.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase DB: {e}")
+        logger.error("Make sure you have created the 'settings', 'buttons', and 'channels' tables in your Supabase project!")
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 def get_setting(key: str) -> str:
-    with get_conn() as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT value FROM settings WHERE key=%s", (key,))
-            row = cur.fetchone()
-            return row["value"] if row else ""
+    res = supabase.table("settings").select("value").eq("key", key).execute()
+    if res.data:
+        return res.data[0].get("value", "")
+    return ""
 
 
 def set_setting(key: str, value: str):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO settings (key, value) VALUES (%s, %s) "
-                "ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
-                (key, value)
-            )
-        conn.commit()
+    # Upsert requires the primary key to be included in the object
+    supabase.table("settings").upsert({"key": key, "value": value}).execute()
 
 
 # ── Buttons ───────────────────────────────────────────────────────────────────
 
 def get_buttons():
-    with get_conn() as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT * FROM buttons ORDER BY position, id")
-            return [dict(row) for row in cur.fetchall()]
+    res = supabase.table("buttons").select("*").order("position").order("id").execute()
+    return res.data
 
 
 def add_button(label: str, url: str, position: int = 0):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO buttons (label, url, position) VALUES (%s, %s, %s)",
-                (label, url, position)
-            )
-        conn.commit()
+    supabase.table("buttons").insert({
+        "label": label,
+        "url": url,
+        "position": position
+    }).execute()
 
 
 def delete_button(button_id: int):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM buttons WHERE id=%s", (button_id,))
-        conn.commit()
+    supabase.table("buttons").delete().eq("id", button_id).execute()
 
 
 def update_button(button_id: int, label: str, url: str, position: int):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE buttons SET label=%s, url=%s, position=%s WHERE id=%s",
-                (label, url, position, button_id)
-            )
-        conn.commit()
+    supabase.table("buttons").update({
+        "label": label,
+        "url": url,
+        "position": position
+    }).eq("id", button_id).execute()
 
 
 # ── Channels ──────────────────────────────────────────────────────────────────
 
 def get_channels():
-    with get_conn() as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT * FROM channels")
-            return [dict(row) for row in cur.fetchall()]
+    res = supabase.table("channels").select("*").execute()
+    return res.data
 
 
 def add_channel(channel_id: str, channel_username: str, invite_link: str):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO channels (channel_id, channel_username, invite_link) "
-                "VALUES (%s, %s, %s) ON CONFLICT (channel_id) DO NOTHING",
-                (channel_id, channel_username, invite_link)
-            )
-        conn.commit()
+    # Check if exists first to avoid duplicate errors (or we can just let it fail silently)
+    existing = supabase.table("channels").select("id").eq("channel_id", channel_id).execute()
+    if not existing.data:
+        supabase.table("channels").insert({
+            "channel_id": channel_id,
+            "channel_username": channel_username,
+            "invite_link": invite_link
+        }).execute()
 
 
 def delete_channel(ch_id: int):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM channels WHERE id=%s", (ch_id,))
-        conn.commit()
+    supabase.table("channels").delete().eq("id", ch_id).execute()
