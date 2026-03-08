@@ -1,3 +1,4 @@
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatMemberStatus
@@ -93,12 +94,26 @@ async def join_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             text=(
                 "🎉 *Welcome! You're verified!*\n\n"
                 "You've successfully joined all required channels.\n"
-                "Tap below to open them:"
+                "Tap below to open them:\n\n"
+                "_(This message will self-delete in 5 minutes)_"
             ),
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
         context.user_data["menu_msg_id"] = msg.message_id
+        
+        # Schedule auto-delete after 5 minutes (300 seconds)
+        context.application.create_task(
+            _delayed_delete(context.bot, chat_id, msg.message_id, 300)
+        )
+
+async def _delayed_delete(bot, chat_id: int, message_id: int, delay_seconds: int):
+    """Wait for delay_seconds then delete the message."""
+    await asyncio.sleep(delay_seconds)
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except TelegramError:
+        pass
 
 
 async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):

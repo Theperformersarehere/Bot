@@ -158,7 +158,7 @@ async def _send_settings_menu(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
             f"📝 *Menu Text:*\n{preview}\n\n"
             f"🖼️ *Menu Photo:* {photo_status}"
         ),
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=None, # Disabled Markdown here to prevent errors from unescaped user text
         reply_markup=InlineKeyboardMarkup(kb),
     )
 
@@ -282,11 +282,11 @@ async def _send_buttons_menu(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
     return await context.bot.send_message(
         chat_id=chat_id,
         text=(
-            f"🔘 *Inline Buttons* ({len(buttons)} total)\n"
+            f"🔘 Buttons ({len(buttons)} total)\n"
             f"──────────────────\n"
             f"{body}"
         ),
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=None, # Disabled ParseMode to avoid unescaped user button names breaking the bot
         reply_markup=InlineKeyboardMarkup(kb),
     )
 
@@ -400,11 +400,11 @@ async def _send_channels_menu(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
     return await context.bot.send_message(
         chat_id=chat_id,
         text=(
-            f"📢 *Force\\-Join Channels* ({len(channels)} total)\n"
+            f"📢 Force-Join Channels ({len(channels)} total)\n"
             f"──────────────────\n"
             f"{body}"
         ),
-        parse_mode=ParseMode.MARKDOWN_V2,
+        parse_mode=None, # Disabled ParseMode to prevent bad escape chars breaking the bot
         reply_markup=InlineKeyboardMarkup(kb),
     )
 
