@@ -425,13 +425,13 @@ async def channels_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                "➕ *Add Channel — Step 1 / 3*\n"
+                "➕ Add Channel — Step 1 / 3\n"
                 "──────────────────\n"
-                "Send the *Channel ID*\n"
-                "_(e.g. `-1001234567890`)_\n\n"
+                "Send the Channel ID\n"
+                "(e.g. -1001234567890)\n\n"
                 "💡 Forward a message from the channel to @userinfobot to get its ID."
             ),
-            parse_mode=ParseMode.MARKDOWN,
+            parse_mode=None,
             reply_markup=InlineKeyboardMarkup(kb),
         )
         await _replace(context, chat_id, msg)
@@ -462,13 +462,13 @@ async def receive_ch_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(
-            "➕ *Add Channel — Step 2 / 3*\n"
+            "➕ Add Channel — Step 2 / 3\n"
             "──────────────────\n"
-            f"ID saved: `{ch_id}`\n\n"
-            "Now send the *channel username*\n"
-            "_(e.g. `@mychannel`)_"
+            f"ID saved: {ch_id}\n\n"
+            "Now send the channel username\n"
+            "(e.g. @mychannel)"
         ),
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=None,
         reply_markup=InlineKeyboardMarkup(kb),
     )
     await _replace(context, update.effective_chat.id, msg)
@@ -487,13 +487,13 @@ async def receive_ch_username(update: Update, context: ContextTypes.DEFAULT_TYPE
     msg = await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(
-            "➕ *Add Channel — Step 3 / 3*\n"
+            "➕ Add Channel — Step 3 / 3\n"
             "──────────────────\n"
-            f"Username saved: *{username}*\n\n"
-            "Finally, send the *invite link*\n"
-            "_(e.g. `https://t.me/mychannel` or a private invite link)_"
+            f"Username saved: {username}\n\n"
+            "Finally, send the invite link\n"
+            "(e.g. https://t.me/mychannel or a private invite link)"
         ),
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=None,
         reply_markup=InlineKeyboardMarkup(kb),
     )
     await _replace(context, update.effective_chat.id, msg)
