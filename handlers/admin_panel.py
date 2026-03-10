@@ -25,9 +25,8 @@ logger = logging.getLogger(__name__)
     SETTINGS_MENU,
     AWAIT_MENU_TEXT,
     AWAIT_MENU_PHOTO,
-    BUTTONS_MENU,
-    AWAIT_BTN_LABEL,
-    AWAIT_BTN_URL,
+    JOIN_LINK_MENU,
+    AWAIT_JOIN_LINK,
     CHANNELS_MENU,
     AWAIT_CH_ID,
     AWAIT_CH_USERNAME,
@@ -84,7 +83,7 @@ async def _send_admin_home(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
     kb = [
         [
             InlineKeyboardButton("⚙️  Settings",  callback_data="adm:settings"),
-            InlineKeyboardButton("🔘  Buttons",   callback_data="adm:buttons"),
+            InlineKeyboardButton("🔗  Join Link",   callback_data="adm:joinlink"),
         ],
         [
             InlineKeyboardButton("📢  Channels",  callback_data="adm:channels"),
@@ -115,10 +114,10 @@ async def admin_home_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         await _replace(context, chat_id, msg)
         return SETTINGS_MENU
 
-    elif data == "adm:buttons":
-        msg = await _send_buttons_menu(chat_id, context)
+    elif data == "adm:joinlink":
+        msg = await _send_join_link_menu(chat_id, context)
         await _replace(context, chat_id, msg)
-        return BUTTONS_MENU
+        return JOIN_LINK_MENU
 
     elif data == "adm:channels":
         msg = await _send_channels_menu(chat_id, context)
@@ -251,47 +250,31 @@ async def receive_menu_photo(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  BUTTONS
+#  JOIN LINK
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def _send_buttons_menu(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
-    buttons = db.get_buttons()
-    kb = []
-
-    for btn in buttons:
-        label_preview = btn["label"][:20] + "…" if len(btn["label"]) > 20 else btn["label"]
-        kb.append([
-            InlineKeyboardButton(
-                f"🗑️  {label_preview}",
-                callback_data=f"adm:delbtn:{btn['id']}"
-            )
-        ])
-
-    kb.append([InlineKeyboardButton("➕  Add New Button",  callback_data="adm:add_btn")])
-    kb.append([InlineKeyboardButton("◀️  Back",            callback_data="adm:home")])
-
-    if buttons:
-        list_text = "\n".join(
-            f"  {i+1}\\. *{b['label']}*\n      `{b['url']}`"
-            for i, b in enumerate(buttons)
-        )
-        body = f"{list_text}\n\n_Tap a button label above to delete it._"
-    else:
-        body = "_No buttons yet. Add one below._"
+async def _send_join_link_menu(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
+    current_link = db.get_setting("join_channel_link") or "Not set"
+    
+    kb = [
+        [InlineKeyboardButton("✏️  Edit Join Link", callback_data="adm:edit_joinlink")],
+        [InlineKeyboardButton("◀️  Back",           callback_data="adm:home")],
+    ]
 
     return await context.bot.send_message(
         chat_id=chat_id,
         text=(
-            f"🔘 Buttons ({len(buttons)} total)\n"
-            f"──────────────────\n"
-            f"{body}"
+            "🔗 Join Channel Link\n"
+            "──────────────────\n"
+            "This is the main button shown to users on /start.\n\n"
+            f"Current Link: {current_link}"
         ),
-        parse_mode=None, # Disabled ParseMode to avoid unescaped user button names breaking the bot
+        parse_mode=None,
         reply_markup=InlineKeyboardMarkup(kb),
     )
 
 
-async def buttons_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def join_link_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data    = query.data
@@ -302,71 +285,39 @@ async def buttons_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _replace(context, chat_id, msg)
         return ADMIN_MENU
 
-    elif data == "adm:add_btn":
-        kb = [[InlineKeyboardButton("◀️  Cancel", callback_data="adm:buttons")]]
+    elif data == "adm:edit_joinlink":
+        kb = [[InlineKeyboardButton("◀️  Cancel", callback_data="adm:joinlink")]]
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                "➕ *Add Button — Step 1 / 2*\n"
+                "✏️ Update Join Link\n"
                 "──────────────────\n"
-                "Send the *button label* (text shown on the button):"
+                "Send the new URL for the Join Channel button:"
             ),
-            parse_mode=ParseMode.MARKDOWN,
+            parse_mode=None,
             reply_markup=InlineKeyboardMarkup(kb),
         )
         await _replace(context, chat_id, msg)
-        return AWAIT_BTN_LABEL
+        return AWAIT_JOIN_LINK
 
-    elif data.startswith("adm:delbtn:"):
-        btn_id = int(data.split(":")[2])
-        db.delete_button(btn_id)
-        msg = await _send_buttons_menu(chat_id, context)
-        await _replace(context, chat_id, msg)
-        return BUTTONS_MENU
-
-    # "adm:buttons" — refresh
-    msg = await _send_buttons_menu(chat_id, context)
+    # "adm:joinlink" — refresh
+    msg = await _send_join_link_menu(chat_id, context)
     await _replace(context, chat_id, msg)
-    return BUTTONS_MENU
+    return JOIN_LINK_MENU
 
 
-async def receive_btn_label(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    label = (update.message.text or "").strip()
-    try:
-        await update.message.delete()
-    except TelegramError:
-        pass
-
-    context.user_data["new_btn_label"] = label
-    kb = [[InlineKeyboardButton("◀️  Cancel", callback_data="adm:buttons")]]
-    msg = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=(
-            f"➕ *Add Button — Step 2 / 2*\n"
-            f"──────────────────\n"
-            f"Label set to: *{label}*\n\n"
-            f"Now send the *URL* for this button:"
-        ),
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=InlineKeyboardMarkup(kb),
-    )
-    await _replace(context, update.effective_chat.id, msg)
-    return AWAIT_BTN_URL
-
-
-async def receive_btn_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def receive_join_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = (update.message.text or "").strip()
     try:
         await update.message.delete()
     except TelegramError:
         pass
 
-    label = context.user_data.pop("new_btn_label", "Button")
-    db.add_button(label, url)
+    db.set_setting("join_channel_link", url)
 
-    msg = await _send_buttons_menu(update.effective_chat.id, context)
+    msg = await _send_join_link_menu(update.effective_chat.id, context)
     await _replace(context, update.effective_chat.id, msg)
-    return BUTTONS_MENU
+    return JOIN_LINK_MENU
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -553,16 +504,12 @@ def build_admin_conv_handler() -> ConversationHandler:
                 MessageHandler(filters.PHOTO, receive_menu_photo),
                 CallbackQueryHandler(settings_callback, pattern=r"^adm:"),
             ],
-            BUTTONS_MENU: [
-                CallbackQueryHandler(buttons_callback, pattern=r"^adm:"),
+            JOIN_LINK_MENU: [
+                CallbackQueryHandler(join_link_callback, pattern=r"^adm:"),
             ],
-            AWAIT_BTN_LABEL: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_btn_label),
-                CallbackQueryHandler(buttons_callback, pattern=r"^adm:"),
-            ],
-            AWAIT_BTN_URL: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_btn_url),
-                CallbackQueryHandler(buttons_callback, pattern=r"^adm:"),
+            AWAIT_JOIN_LINK: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_join_link),
+                CallbackQueryHandler(join_link_callback, pattern=r"^adm:"),
             ],
             CHANNELS_MENU: [
                 CallbackQueryHandler(channels_callback, pattern=r"^adm:"),

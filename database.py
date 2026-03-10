@@ -32,6 +32,14 @@ def init_db():
                 "key": "menu_photo_file_id",
                 "value": ""
             }).execute()
+
+        # Check if join_channel_link exists
+        res = supabase.table("settings").select("*").eq("key", "join_channel_link").execute()
+        if not res.data:
+            supabase.table("settings").insert({
+                "key": "join_channel_link",
+                "value": "https://t.me/yourchannel"
+            }).execute()
             
         logger.info("Supabase connected and default settings verified.")
     except Exception as e:
@@ -51,33 +59,6 @@ def get_setting(key: str) -> str:
 def set_setting(key: str, value: str):
     # Upsert requires the primary key to be included in the object
     supabase.table("settings").upsert({"key": key, "value": value}).execute()
-
-
-# ── Buttons ───────────────────────────────────────────────────────────────────
-
-def get_buttons():
-    res = supabase.table("buttons").select("*").order("position").order("id").execute()
-    return res.data
-
-
-def add_button(label: str, url: str, position: int = 0):
-    supabase.table("buttons").insert({
-        "label": label,
-        "url": url,
-        "position": position
-    }).execute()
-
-
-def delete_button(button_id: int):
-    supabase.table("buttons").delete().eq("id", button_id).execute()
-
-
-def update_button(button_id: int, label: str, url: str, position: int):
-    supabase.table("buttons").update({
-        "label": label,
-        "url": url,
-        "position": position
-    }).eq("id", button_id).execute()
 
 
 # ── Channels ──────────────────────────────────────────────────────────────────

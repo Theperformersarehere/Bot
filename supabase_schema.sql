@@ -6,13 +6,6 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT
 );
 
-CREATE TABLE IF NOT EXISTS buttons (
-    id       SERIAL PRIMARY KEY,
-    label    TEXT NOT NULL,
-    url      TEXT NOT NULL,
-    position INTEGER DEFAULT 0
-);
-
 CREATE TABLE IF NOT EXISTS channels (
     id               SERIAL PRIMARY KEY,
     channel_id       TEXT NOT NULL UNIQUE,
@@ -27,4 +20,8 @@ ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO settings (key, value) 
 VALUES ('menu_photo_file_id', '')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value)
+VALUES ('join_channel_link', 'https://t.me/yourchannel')
 ON CONFLICT (key) DO NOTHING;

@@ -34,6 +34,34 @@ async def join_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.user_data["menu_msg_id"] = msg.message_id
         return
 
+    # ── Delete the old menu message cleanly ───────────────────────────────────
+    await _delete_query_message(query)
+
+    # ── Loading Bar Animation ─────────────────────────────────────────────────
+    loading_msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text="🔄 *Verifying* ⏳",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    
+    await asyncio.sleep(0.5)
+    try:
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=loading_msg.message_id,
+            text="🔄 *Verifying* ⌛",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        await asyncio.sleep(0.5)
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=loading_msg.message_id,
+            text="🔄 *Verifying* ⏳",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    except TelegramError:
+        pass
+
     # ── Check each channel ────────────────────────────────────────────────────
     not_joined: list[dict] = []
     for ch in channels:
@@ -47,26 +75,24 @@ async def join_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             # Bot not in channel or channel private — treat as not joined
             not_joined.append(dict(ch))
 
-    # ── Delete the old menu message cleanly ───────────────────────────────────
-    await _delete_query_message(query)
+    # Delete the loading message
+    try:
+        await context.bot.delete_message(chat_id=chat_id, message_id=loading_msg.message_id)
+    except TelegramError:
+        pass
 
     if not_joined:
-        # ── Show which channels they haven't joined ───────────────────────────
+        # ── Show failures with the single Join Link ───────────────────────────
+        join_link = db.get_setting("join_channel_link") or "https://t.me"
         text = (
-            "❌ *You haven't joined all required channels yet!*\n\n"
-            "Please join the channels below and tap *Verify Again*:"
+            "❌ *You haven't joined yet!*\n\n"
+            "Please join our channel below and then tap *Try Again*:"
         )
-        keyboard = []
-        for ch in not_joined:
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"📢 {ch['channel_username']}",
-                    url=ch["invite_link"]
-                )
-            ])
-        keyboard.append([
-            InlineKeyboardButton("🔄 Verify Again", callback_data="check_join")
-        ])
+        keyboard = [
+            [InlineKeyboardButton("📢 Join Channel", url=join_link)],
+            [InlineKeyboardButton("🔄 Try Again", callback_data="check_join")]
+        ]
+        
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text=text,

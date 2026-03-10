@@ -53,8 +53,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def _build_main_keyboard() -> list[list[InlineKeyboardButton]]:
     rows: list[list[InlineKeyboardButton]] = []
 
-    for btn in db.get_buttons():
-        rows.append([InlineKeyboardButton(text=btn["label"], url=btn["url"])])
+    join_link = db.get_setting("join_channel_link") or "https://t.me"
+    rows.append([InlineKeyboardButton(text="📢 Join Channel", url=join_link)])
 
     if db.get_channels():
         rows.append([
