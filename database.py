@@ -81,3 +81,20 @@ def add_channel(channel_id: str, channel_username: str, invite_link: str):
 
 def delete_channel(ch_id: int):
     supabase.table("channels").delete().eq("id", ch_id).execute()
+
+
+# ── Videos ────────────────────────────────────────────────────────────────────
+
+def get_videos():
+    res = supabase.table("videos").select("*").order("id").execute()
+    return res.data
+
+
+def add_video(file_id: str):
+    supabase.table("videos").insert({
+        "file_id": file_id
+    }).execute()
+
+
+def delete_video(video_id: int):
+    supabase.table("videos").delete().eq("id", video_id).execute()

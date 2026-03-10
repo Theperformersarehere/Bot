@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
     AWAIT_CH_ID,
     AWAIT_CH_USERNAME,
     AWAIT_CH_LINK,
-) = range(11)
+    VIDEOS_MENU,
+    AWAIT_VIDEO,
+) = range(13)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -87,6 +89,7 @@ async def _send_admin_home(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("📢  Channels",  callback_data="adm:channels"),
+            InlineKeyboardButton("🎥  Videos",    callback_data="adm:videos"),
         ],
         [InlineKeyboardButton("❌  Close Panel",  callback_data="adm:close")],
     ]
@@ -123,6 +126,11 @@ async def admin_home_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         msg = await _send_channels_menu(chat_id, context)
         await _replace(context, chat_id, msg)
         return CHANNELS_MENU
+
+    elif data == "adm:videos":
+        msg = await _send_videos_menu(chat_id, context)
+        await _replace(context, chat_id, msg)
+        return VIDEOS_MENU
 
     elif data == "adm:close":
         old_id = context.user_data.pop("admin_msg_id", None)
@@ -468,6 +476,99 @@ async def receive_ch_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  VIDEOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def _send_videos_menu(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
+    videos = db.get_videos()
+    kb = []
+
+    for vid in videos:
+        kb.append([
+            InlineKeyboardButton(
+                f"🗑️  Delete Video {vid['id']}",
+                callback_data=f"adm:delvid:{vid['id']}"
+            )
+        ])
+
+    kb.append([InlineKeyboardButton("➕  Add Video",  callback_data="adm:add_vid")])
+    kb.append([InlineKeyboardButton("◀️  Back",       callback_data="adm:home")])
+
+    if videos:
+        body = f"You have {len(videos)} video(s) configured.\n_Tap one to delete it._"
+    else:
+        body = "_No videos configured yet._"
+
+    return await context.bot.send_message(
+        chat_id=chat_id,
+        text=(
+            f"🎥 Forwarded Videos\n"
+            f"──────────────────\n"
+            f"{body}"
+        ),
+        parse_mode=None,
+        reply_markup=InlineKeyboardMarkup(kb),
+    )
+
+
+async def videos_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data    = query.data
+    chat_id = update.effective_chat.id
+
+    if data == "adm:home":
+        msg = await _send_admin_home(chat_id, context)
+        await _replace(context, chat_id, msg)
+        return ADMIN_MENU
+
+    elif data == "adm:add_vid":
+        kb = [[InlineKeyboardButton("◀️  Cancel", callback_data="adm:videos")]]
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "➕ Add Video\n"
+                "──────────────────\n"
+                "Please forward or upload the video you want to save. You can do this multiple times."
+            ),
+            parse_mode=None,
+            reply_markup=InlineKeyboardMarkup(kb),
+        )
+        await _replace(context, chat_id, msg)
+        return AWAIT_VIDEO
+
+    elif data.startswith("adm:delvid:"):
+        vid_id = int(data.split(":")[2])
+        db.delete_video(vid_id)
+        msg = await _send_videos_menu(chat_id, context)
+        await _replace(context, chat_id, msg)
+        return VIDEOS_MENU
+
+    # refresh
+    msg = await _send_videos_menu(chat_id, context)
+    await _replace(context, chat_id, msg)
+    return VIDEOS_MENU
+
+
+async def receive_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.video:
+        file_id = update.message.video.file_id
+        db.add_video(file_id)
+    elif update.message.document and update.message.document.mime_type.startswith('video/'):
+        file_id = update.message.document.file_id
+        db.add_video(file_id)
+
+    try:
+        await update.message.delete()
+    except TelegramError:
+        pass
+
+    msg = await _send_videos_menu(update.effective_chat.id, context)
+    await _replace(context, update.effective_chat.id, msg)
+    return VIDEOS_MENU
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  CANCEL / FALLBACK
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -525,6 +626,13 @@ def build_admin_conv_handler() -> ConversationHandler:
             AWAIT_CH_LINK: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_ch_link),
                 CallbackQueryHandler(channels_callback, pattern=r"^adm:"),
+            ],
+            VIDEOS_MENU: [
+                CallbackQueryHandler(videos_callback, pattern=r"^adm:"),
+            ],
+            AWAIT_VIDEO: [
+                MessageHandler(filters.VIDEO | filters.Document.VIDEO, receive_video),
+                CallbackQueryHandler(videos_callback, pattern=r"^adm:"),
             ],
         },
         fallbacks=[CommandHandler("cancel", cancel_admin)],

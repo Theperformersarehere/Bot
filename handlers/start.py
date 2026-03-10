@@ -24,7 +24,18 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
 
-    menu_text          = db.get_setting("menu_text") or "👋 *Welcome!*"
+    # Format menu text with user details
+    user = update.effective_user
+    first_name = user.first_name if user else "User"
+    username   = f"@{user.username}" if user and user.username else ""
+    
+    # Use formatted string or fallback to exact requested text if not set in DB
+    default_text = f"Hey {first_name} {username}\n\nPlease Join All My Update Channels To Use Me!"
+    menu_text = db.get_setting("menu_text") or default_text
+    
+    # In case the user explicitly specified {first_name} and {username} in the admin panel
+    menu_text = menu_text.replace("{first_name}", first_name).replace("{username}", username)
+
     menu_photo_file_id = db.get_setting("menu_photo_file_id")
 
     # Build inline keyboard
@@ -54,11 +65,11 @@ def _build_main_keyboard() -> list[list[InlineKeyboardButton]]:
     rows: list[list[InlineKeyboardButton]] = []
 
     join_link = db.get_setting("join_channel_link") or "https://t.me"
-    rows.append([InlineKeyboardButton(text="📢 Join Channel", url=join_link)])
+    rows.append([InlineKeyboardButton(text="Join Channel 1", url=join_link)])
 
     if db.get_channels():
         rows.append([
-            InlineKeyboardButton("✅ I've Joined — Verify", callback_data="check_join")
+            InlineKeyboardButton("♻️ Try Again", callback_data="check_join")
         ])
 
     return rows

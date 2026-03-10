@@ -121,17 +121,36 @@ async def join_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "🎉 *Welcome! You're verified!*\n\n"
                 "You've successfully joined all required channels.\n"
                 "Tap below to open them:\n\n"
-                "_(This message will self-delete in 5 minutes)_"
+                "_(This message and the videos will self-delete in 5 minutes)_"
             ),
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
         context.user_data["menu_msg_id"] = msg.message_id
         
-        # Schedule auto-delete after 5 minutes (300 seconds)
+        # Schedule auto-delete for the main success message
         context.application.create_task(
             _delayed_delete(context.bot, chat_id, msg.message_id, 300)
         )
+
+        # ── Send Videos ───────────────────────────────────────────────────────
+        videos = db.get_videos()
+        if videos:
+            for vid in videos:
+                try:
+                    # We use send_document or send_video based on what is stored,
+                    # but since we don't know the exact type, try video first, then fallback to document
+                    try:
+                        v_msg = await context.bot.send_video(chat_id=chat_id, video=vid["file_id"])
+                    except TelegramError:
+                        v_msg = await context.bot.send_document(chat_id=chat_id, document=vid["file_id"])
+
+                    # Schedule auto-delete for the video message too
+                    context.application.create_task(
+                        _delayed_delete(context.bot, chat_id, v_msg.message_id, 300)
+                    )
+                except TelegramError as e:
+                    print(f"Error sending video {vid['id']}: {e}")
 
 async def _delayed_delete(bot, chat_id: int, message_id: int, delay_seconds: int):
     """Wait for delay_seconds then delete the message."""
