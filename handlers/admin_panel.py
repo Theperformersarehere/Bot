@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
     AWAIT_CH_LINK,
     VIDEOS_MENU,
     AWAIT_VIDEO,
-) = range(13)
+) = range(12)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
