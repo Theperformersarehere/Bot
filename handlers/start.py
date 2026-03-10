@@ -25,19 +25,26 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     # Format menu text with user details
+    import re
     user = update.effective_user
     
-    # We escape the first name slightly in case it contains markdown characters
-    first_name = user.first_name.replace("*", "").replace("_", "").replace("[", "").replace("]", "") if user else "User"
-    mention = f"[{first_name}](tg://user?id={user.id})" if user else first_name
+    # We escape HTML characters in the user's name
+    first_name = user.first_name.replace("<", "&lt;").replace(">", "&gt;").replace("&", "&amp;") if user else "User"
+    mention = f'<a href="tg://user?id={user.id}">{first_name}</a>' if user else first_name
     username   = f"@{user.username}" if user and user.username else ""
     
     # Use formatted string or fallback to exact requested text if not set in DB
-    default_text = f"*Hey {mention} {username}*\n\n*Please Join All My Update Channels To Use Me!*"
-    menu_text = db.get_setting("menu_text") or default_text
+    default_text = f"<b>Hey {mention} {username}</b>\n\n<b>Please Join All My Update Channels To Use Me!</b>"
+    menu_text = db.get_setting("menu_text")
     
-    # In case the user explicitly specified {first_name} and {username} in the admin panel
-    menu_text = menu_text.replace("{first_name}", mention).replace("{username}", username)
+    if menu_text:
+        # Convert legacy markdown *bold* into HTML <b>bold</b> so users can still use stars in the admin panel
+        menu_text = re.sub(r'\*(.*?)\*', r'<b>\1</b>', menu_text)
+        
+        # Replace variables
+        menu_text = menu_text.replace("{first_name}", mention).replace("{username}", username)
+    else:
+        menu_text = default_text
 
     menu_photo_file_id = db.get_setting("menu_photo_file_id")
 
@@ -50,14 +57,14 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat_id,
             photo=menu_photo_file_id,
             caption=menu_text,
-            parse_mode=ParseMode.MARKDOWN,
+            parse_mode=ParseMode.HTML,
             reply_markup=reply_markup,
         )
     else:
         sent = await context.bot.send_message(
             chat_id=chat_id,
             text=menu_text,
-            parse_mode=ParseMode.MARKDOWN,
+            parse_mode=ParseMode.HTML,
             reply_markup=reply_markup,
         )
 
