@@ -26,15 +26,18 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Format menu text with user details
     user = update.effective_user
-    first_name = user.first_name if user else "User"
+    
+    # We escape the first name slightly in case it contains markdown characters
+    first_name = user.first_name.replace("*", "").replace("_", "").replace("[", "").replace("]", "") if user else "User"
+    mention = f"[{first_name}](tg://user?id={user.id})" if user else first_name
     username   = f"@{user.username}" if user and user.username else ""
     
     # Use formatted string or fallback to exact requested text if not set in DB
-    default_text = f"Hey {first_name} {username}\n\nPlease Join All My Update Channels To Use Me!"
+    default_text = f"*Hey {mention} {username}*\n\n*Please Join All My Update Channels To Use Me!*"
     menu_text = db.get_setting("menu_text") or default_text
     
     # In case the user explicitly specified {first_name} and {username} in the admin panel
-    menu_text = menu_text.replace("{first_name}", first_name).replace("{username}", username)
+    menu_text = menu_text.replace("{first_name}", mention).replace("{username}", username)
 
     menu_photo_file_id = db.get_setting("menu_photo_file_id")
 

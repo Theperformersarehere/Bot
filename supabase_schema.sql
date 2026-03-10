@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS videos (
 
 -- Insert defaults for settings
 INSERT INTO settings (key, value) 
-VALUES ('menu_text', 'Hey {first_name} {username}\n\nPlease Join All My Update Channels To Use Me!')
+VALUES ('menu_text', '*Hey {first_name} {username}*\n\n*Please Join All My Update Channels To Use Me!*')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO settings (key, value) 
