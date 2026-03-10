@@ -75,11 +75,7 @@ def _build_main_keyboard() -> list[list[InlineKeyboardButton]]:
     rows: list[list[InlineKeyboardButton]] = []
 
     join_link = db.get_setting("join_channel_link") or "https://t.me"
-    rows.append([InlineKeyboardButton(text="Join Channel 1", url=join_link)])
-
-    if db.get_channels():
-        rows.append([
-            InlineKeyboardButton("♻️ Try Again", callback_data="check_join")
-        ])
+    rows.append([InlineKeyboardButton(text="📢 𝗝𝗼𝗶𝗻 𝗖𝗵𝗮𝗻𝗻𝗲𝗹", url=join_link)])
+    rows.append([InlineKeyboardButton("✅ 𝗩𝗲𝗿𝗶𝗳𝘆", callback_data="check_join")])
 
     return rows

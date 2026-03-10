@@ -23,16 +23,6 @@ async def join_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     chat_id = update.effective_chat.id
 
     channels = db.get_channels()
-    if not channels:
-        # No channels configured — just delete the menu and confirm
-        await _delete_query_message(query)
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text="✅ *You're all set!*\n\nNo channels to verify right now.",
-            parse_mode=ParseMode.MARKDOWN,
-        )
-        context.user_data["menu_msg_id"] = msg.message_id
-        return
 
     # ── Delete the old menu message cleanly ───────────────────────────────────
     await _delete_query_message(query)
@@ -89,8 +79,8 @@ async def join_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             "Please join our channel below and then tap *Try Again*:"
         )
         keyboard = [
-            [InlineKeyboardButton("📢 Join Channel", url=join_link)],
-            [InlineKeyboardButton("🔄 Try Again", callback_data="check_join")]
+            [InlineKeyboardButton("📢 𝗝𝗼𝗶𝗻 𝗖𝗵𝗮𝗻𝗻𝗲𝗹", url=join_link)],
+            [InlineKeyboardButton("♻️ 𝗧𝗿𝘆 𝗔𝗴𝗮𝗶𝗻", callback_data="check_join")]
         ]
         
         msg = await context.bot.send_message(
